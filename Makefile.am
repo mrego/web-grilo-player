@@ -1,4 +1,4 @@
-SUBDIRS = player
+SUBDIRS = src
 
 EXTRA_DIST= \
 	autoget.sh

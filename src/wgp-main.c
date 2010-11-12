@@ -1,5 +1,5 @@
 /*
- * web-grilo-player-example.c: Example
+ * wgp-main.c: Main file
  *
  * Copyright (C) 2010 Manuel Rego Casasnovas <mrego@igalia.com>
  *
@@ -33,7 +33,7 @@ main (gint argc, gchar **argv)
 
 	gtk_init (&argc, &argv);
 
-        path_html = PLAYER_DIR "test.html";
+        path_html = HTML_DIR "test.html";
         uri_html = g_filename_to_uri(path_html, NULL, NULL);
 
         main_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);

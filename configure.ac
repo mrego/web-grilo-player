@@ -42,7 +42,7 @@ AC_SUBST([PLAYER_CFLAGS])
 
 AC_CONFIG_FILES([
 Makefile
-player/Makefile
+src/Makefile
 ])
 
 AC_OUTPUT
@@ -53,6 +53,6 @@ AC_OUTPUT
 #********
 
 echo ""
-echo "PLAYER $VERSION"
-echo "==============="
+echo "WEB GRILO PLAYER $VERSION"
+echo "========================="
 echo ""
