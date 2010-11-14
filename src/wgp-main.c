@@ -21,6 +21,70 @@
 #include <gtk/gtk.h>
 #include <webkit/webkit.h>
 
+#include <stdio.h>
+
+
+void
+test_dom_bindings (WebKitWebView* view,
+                   WebKitWebFrame* frame,
+                   gpointer user_data);
+void
+print_node (WebKitDOMNode* node);
+
+
+void
+print_node (WebKitDOMNode* node)
+{
+        g_print ("Name: %s\n", webkit_dom_node_get_node_name (node));
+        g_print ("Value: %s\n", webkit_dom_node_get_node_value (node));
+        g_print ("Text content: %s\n", webkit_dom_node_get_text_content (node));
+}
+
+void
+test_dom_bindings (WebKitWebView* view,
+                   WebKitWebFrame* frame,
+                   gpointer user_data)
+{
+        WebKitDOMDocument* document;
+        WebKitDOMHTMLHeadElement* head;
+        WebKitDOMHTMLElement* body;
+        WebKitDOMNodeList* list;
+        WebKitDOMNode* node;
+        WebKitDOMElement* p;
+
+        gulong i, length;
+
+        document = webkit_web_view_get_dom_document (view);
+
+        head = webkit_dom_document_get_head (document);
+        body = webkit_dom_document_get_body (document);
+
+        list = webkit_dom_node_get_child_nodes (WEBKIT_DOM_NODE (head));
+
+        length = webkit_dom_node_list_get_length (list);
+        g_print ("Number of children: %d\n", (gint) length);
+
+        for (i = 0; i < length; i++) {
+                node = webkit_dom_node_list_item (list, i);
+                print_node (node);
+        }
+
+        list = webkit_dom_node_get_child_nodes (WEBKIT_DOM_NODE (body));
+
+        length = webkit_dom_node_list_get_length (list);
+        g_print ("Number of children: %d\n", (gint) length);
+
+        for (i = 0; i < length; i++) {
+                node = webkit_dom_node_list_item (list, i);
+                print_node (node);
+        }
+
+        p = webkit_dom_document_create_element(document, "P", NULL);
+        webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (p), "Paragraph added from C...", NULL);
+        webkit_dom_node_append_child (WEBKIT_DOM_NODE (body), WEBKIT_DOM_NODE (p), NULL);
+
+}
+
 gint
 main (gint argc, gchar **argv)
 {
@@ -49,6 +113,7 @@ main (gint argc, gchar **argv)
         gtk_widget_show_all (main_window);
 
         g_signal_connect (main_window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
+        g_signal_connect (web_view, "document-load-finished", G_CALLBACK (test_dom_bindings), NULL);
 
         gtk_main ();
 
