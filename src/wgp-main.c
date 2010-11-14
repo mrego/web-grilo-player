@@ -20,19 +20,12 @@
 
 #include <gtk/gtk.h>
 #include <webkit/webkit.h>
+#include <grilo.h>
 
 #include <stdio.h>
 
 
-void
-test_dom_bindings (WebKitWebView* view,
-                   WebKitWebFrame* frame,
-                   gpointer user_data);
-void
-print_node (WebKitDOMNode* node);
-
-
-void
+static void
 print_node (WebKitDOMNode* node)
 {
         g_print ("Name: %s\n", webkit_dom_node_get_node_name (node));
@@ -40,8 +33,8 @@ print_node (WebKitDOMNode* node)
         g_print ("Text content: %s\n", webkit_dom_node_get_text_content (node));
 }
 
-void
-test_dom_bindings (WebKitWebView* view,
+static void
+test_dom_bindings_cb (WebKitWebView* view,
                    WebKitWebFrame* frame,
                    gpointer user_data)
 {
@@ -85,6 +78,51 @@ test_dom_bindings (WebKitWebView* view,
 
 }
 
+static void
+source_added_cb (GrlPluginRegistry *registry, gpointer user_data)
+{
+        g_debug ("Detected new source available: '%s'",
+                 grl_metadata_source_get_name (GRL_METADATA_SOURCE (user_data)));
+
+        /* Usually you may add the new service to the user interface so the user
+           can interact with it (browse, search, etc) */
+}
+
+static void
+source_removed_cb (GrlPluginRegistry *registry, gpointer user_data)
+{
+        g_debug ("Source '%s' is gone",
+                 grl_metadata_source_get_name (GRL_METADATA_SOURCE (user_data)));
+
+        /* Usually you would inform the user that this service is no longer
+           available (for example a UPnP server was shutdown) and remove it
+           from the user interface. */
+}
+
+static void
+load_plugins (void)
+{
+        GrlPluginRegistry *registry;
+
+        registry = grl_plugin_registry_get_default ();
+
+        /* These callback will be invoked when media providers
+           are loaded/unloaded */
+        g_signal_connect (registry, "source-added",
+                          G_CALLBACK (source_added_cb), NULL);
+        g_signal_connect (registry, "source-removed",
+                          G_CALLBACK (source_removed_cb), NULL);
+
+        /* Command the registry to load all available plugins.
+           The registry will look for plugins in the default
+           plugin path and directories specified using the
+           GRL_PLUGIN_PATH environment variable */
+        if (!grl_plugin_registry_load_all (registry)) {
+                g_error ("Failed to load plugins.");
+        }
+}
+
+
 gint
 main (gint argc, gchar **argv)
 {
@@ -96,6 +134,9 @@ main (gint argc, gchar **argv)
         gchar *uri_html;
 
 	gtk_init (&argc, &argv);
+
+	grl_init (&argc, &argv);
+        load_plugins ();
 
         path_html = HTML_DIR "test.html";
         uri_html = g_filename_to_uri(path_html, NULL, NULL);
@@ -113,7 +154,7 @@ main (gint argc, gchar **argv)
         gtk_widget_show_all (main_window);
 
         g_signal_connect (main_window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
-        g_signal_connect (web_view, "document-load-finished", G_CALLBACK (test_dom_bindings), NULL);
+        g_signal_connect (web_view, "document-load-finished", G_CALLBACK (test_dom_bindings_cb), NULL);
 
         gtk_main ();
 
