@@ -28,9 +28,18 @@
 static void
 print_node (WebKitDOMNode* node)
 {
+        WebKitDOMNamedNodeMap* map;
+        WebKitDOMNode* id;
+
         g_print ("Name: %s\n", webkit_dom_node_get_node_name (node));
         g_print ("Value: %s\n", webkit_dom_node_get_node_value (node));
         g_print ("Text content: %s\n", webkit_dom_node_get_text_content (node));
+
+        if (webkit_dom_node_has_attributes (node)) {
+                map = webkit_dom_node_get_attributes (node);
+                id = webkit_dom_named_node_map_get_named_item (map, "id");
+                g_print ("id: %s\n", webkit_dom_node_get_node_value (id));
+        }
 }
 
 static void
