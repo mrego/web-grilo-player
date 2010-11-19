@@ -57,6 +57,18 @@ GType
 wgp_view_get_type (void);
 
 WgpView *
-wgp_view_new (WebKitDOMNode *sources_node, WebKitDOMNode *main_node);
+wgp_view_new ();
+
+void
+wgp_view_set_sources_node (WgpView *view, WebKitDOMNode *sources_node);
+
+void
+wgp_view_set_main_node (WgpView *view, WebKitDOMNode *main_node);
+
+void
+wgp_view_set_document (WgpView *view, WebKitDOMDocument *document);
+
+void
+wgp_view_run (WgpView *view);
 
 #endif /* __WGP_VIEW_H__ */

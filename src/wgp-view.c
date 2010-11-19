@@ -25,22 +25,30 @@
  */
 
 #include <wgp-view.h>
+#include <grilo.h>
 
 #define WGP_VIEW_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE (        \
                                            (obj), WGP_TYPE_VIEW, WgpViewPrivate))
 
 struct _WgpViewPrivate {
+        WebKitDOMDocument *document;
         WebKitDOMNode *sources_node;
         WebKitDOMNode *main_node;
 };
 
 G_DEFINE_TYPE (WgpView, wgp_view, G_TYPE_OBJECT);
 
+/* Private methods headers */
+void
+wgp_view_load_plugins (WgpView *view);
+
+
 static void
 wgp_view_dispose (GObject *gobject)
 {
         WgpViewPrivate *priv = WGP_VIEW_GET_PRIVATE (WGP_VIEW (gobject));
 
+        g_object_unref (priv->document);
         g_object_unref (priv->sources_node);
         g_object_unref (priv->main_node);
 
@@ -74,13 +82,75 @@ wgp_view_init (WgpView *view)
 }
 
 WgpView *
-wgp_view_new (WebKitDOMNode *sources_node, WebKitDOMNode *main_node)
+wgp_view_new ()
 {
-        g_return_val_if_fail (sources_node != NULL, NULL);
-        g_return_val_if_fail (main_node != NULL, NULL);
+        return g_object_new (WGP_TYPE_VIEW, NULL);
+}
 
-        return g_object_new (WGP_TYPE_VIEW,
-                             "sources_node", sources_node,
-                             "main_node", main_node,
-                             NULL);
+void
+wgp_view_set_document (WgpView *view, WebKitDOMDocument *document)
+{
+        g_return_if_fail (document != NULL);
+
+        view->priv->document = document;
+}
+
+void
+wgp_view_set_sources_node (WgpView *view, WebKitDOMNode *sources_node)
+{
+        g_return_if_fail (sources_node != NULL);
+
+        view->priv->sources_node = sources_node;
+}
+
+void
+wgp_view_set_main_node (WgpView *view, WebKitDOMNode *main_node)
+{
+        g_return_if_fail (main_node != NULL);
+
+        view->priv->main_node = main_node;
+}
+
+static void
+source_added_cb (GrlPluginRegistry *registry, GrlMediaPlugin *source, WgpView *view)
+{
+        WebKitDOMElement *p;
+
+        const gchar *source_name;
+        source_name = grl_metadata_source_get_name (GRL_METADATA_SOURCE (source));
+        g_debug ("Detected new source available: '%s'", source_name);
+
+        p = webkit_dom_document_create_element (view->priv->document, "P", NULL);
+        webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (p),
+                                          g_strdup_printf ("Plugin: %s", source_name),
+                                          NULL);
+        webkit_dom_node_append_child (view->priv->sources_node,
+                                      WEBKIT_DOM_NODE (p),
+                                      NULL);
+}
+
+void
+wgp_view_run (WgpView *view)
+{
+        g_assert (view != NULL);
+
+        wgp_view_load_plugins (view);
+}
+
+void
+wgp_view_load_plugins (WgpView *view)
+{
+        GrlPluginRegistry *registry;
+
+        /* Load grilo plugins */
+        registry = grl_plugin_registry_get_default ();
+
+        g_signal_connect (registry,
+                          "source-added",
+                          G_CALLBACK (source_added_cb),
+                          view);
+
+        if (!grl_plugin_registry_load_all (registry)) {
+                g_error ("Failed to load plugins.");
+        }
 }

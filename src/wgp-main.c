@@ -19,6 +19,8 @@
  */
 
 #include <webkit/webkit.h>
+#include <grilo.h>
+
 #include <wgp-view.h>
 
 static void
@@ -31,6 +33,7 @@ web_view_loaded_cb (WebKitWebView *view,
         WebKitDOMNodeList *list;
         WebKitDOMNamedNodeMap *map;
         WebKitDOMNode *node, *id, *sources_node, *main_node;
+        WgpView *wgp_view;
 
         gulong length, i;
 
@@ -39,6 +42,9 @@ web_view_loaded_cb (WebKitWebView *view,
         list = webkit_dom_node_get_child_nodes (WEBKIT_DOM_NODE (body));
 
         length = webkit_dom_node_list_get_length (list);
+
+        sources_node = NULL;
+        main_node = NULL;
 
         for (i = 0; i < length; i++) {
                 node = webkit_dom_node_list_item (list, i);
@@ -61,7 +67,12 @@ web_view_loaded_cb (WebKitWebView *view,
                 }
         }
 
-        wgp_view_new (sources_node, main_node);
+        wgp_view = wgp_view_new ();
+        wgp_view_set_document (wgp_view, document);
+        wgp_view_set_sources_node (wgp_view, sources_node);
+        wgp_view_set_main_node (wgp_view, main_node);
+
+        wgp_view_run (wgp_view);
 }
 
 
@@ -76,6 +87,7 @@ main (gint argc, gchar **argv)
         gchar *uri_html;
 
 	gtk_init (&argc, &argv);
+	grl_init (&argc, &argv);
 
         /* Build URI for index.html file */
         path_html = HTML_DIR "index.html";
