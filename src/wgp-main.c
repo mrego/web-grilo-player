@@ -34,6 +34,21 @@ print_node (WebKitDOMNode* node)
 }
 
 static void
+clicked_cb (WebKitDOMEventTarget* target,
+            WebKitDOMEvent* event,
+            gpointer user_data)
+{
+        WebKitDOMNode* p = WEBKIT_DOM_NODE (target);
+
+        gchar* content;
+
+        content = webkit_dom_node_get_text_content (p);
+        webkit_dom_node_set_text_content (p, g_strconcat (content, ".", NULL), NULL);
+
+        g_debug ("Paragraph clicked!\n");
+}
+
+static void
 test_dom_bindings_cb (WebKitWebView* view,
                    WebKitWebFrame* frame,
                    gpointer user_data)
@@ -73,8 +88,10 @@ test_dom_bindings_cb (WebKitWebView* view,
         }
 
         p = webkit_dom_document_create_element(document, "P", NULL);
-        webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (p), "Paragraph added from C...", NULL);
+        webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (p), "Paragraph added from C (click-me) ", NULL);
         webkit_dom_node_append_child (WEBKIT_DOM_NODE (body), WEBKIT_DOM_NODE (p), NULL);
+
+        g_signal_connect(p, "click-event", G_CALLBACK(clicked_cb), NULL);
 
 }
 
