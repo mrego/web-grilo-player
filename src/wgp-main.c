@@ -28,25 +28,23 @@ web_view_loaded_cb (WebKitWebView *view,
                     gpointer user_data)
 {
         WebKitDOMDocument *document;
-        WebKitDOMHTMLElement *body;
-        WebKitDOMNodeList *list;
+        WebKitDOMNodeList *divs;
         WebKitDOMNamedNodeMap *map;
         WebKitDOMNode *node, *id, *sources_node, *main_node;
         WgpView *wgp_view;
 
-        gulong length, i;
+        gulong divs_n, i;
 
         document = webkit_web_view_get_dom_document (view);
-        body = webkit_dom_document_get_body (document);
-        list = webkit_dom_node_get_child_nodes (WEBKIT_DOM_NODE (body));
 
-        length = webkit_dom_node_list_get_length (list);
+        divs = webkit_dom_document_get_elements_by_tag_name (document, "div");
+        divs_n = webkit_dom_node_list_get_length (divs);
 
         sources_node = NULL;
         main_node = NULL;
 
-        for (i = 0; i < length; i++) {
-                node = webkit_dom_node_list_item (list, i);
+        for (i = 0; i < divs_n; i++) {
+                node = webkit_dom_node_list_item (divs, i);
 
                 if (webkit_dom_node_has_attributes (node)) {
                         map = webkit_dom_node_get_attributes (node);
