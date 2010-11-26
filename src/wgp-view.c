@@ -32,10 +32,19 @@
 struct _WgpViewPrivate {
         WebKitDOMDocument *document;
         WebKitDOMNode *sources_node;
+        WebKitDOMElement *sources_node_ul;
         WebKitDOMNode *main_node;
+        WebKitDOMElement *main_node_p;
 };
 
 G_DEFINE_TYPE (WgpView, wgp_view, G_TYPE_OBJECT);
+
+
+typedef struct WgpViewAndSourceStrut {
+        WgpView *view;
+        GrlMetadataSource *source;
+} WgpViewAndSourceStrut;
+
 
 /* Private methods headers */
 void
@@ -100,6 +109,14 @@ wgp_view_set_sources_node (WgpView *view, WebKitDOMNode *sources_node)
         g_return_if_fail (sources_node != NULL);
 
         view->priv->sources_node = sources_node;
+
+        view->priv->sources_node_ul =
+                webkit_dom_document_create_element (view->priv->document,
+                                                    "ul",
+                                                    NULL);
+        webkit_dom_node_append_child (view->priv->sources_node,
+                                      WEBKIT_DOM_NODE (view->priv->sources_node_ul),
+                                      NULL);
 }
 
 void
@@ -108,24 +125,118 @@ wgp_view_set_main_node (WgpView *view, WebKitDOMNode *main_node)
         g_return_if_fail (main_node != NULL);
 
         view->priv->main_node = main_node;
+
+        view->priv->main_node_p = webkit_dom_document_create_element (view->priv->document, "p", NULL);
+        webkit_dom_node_append_child (view->priv->main_node,
+                                      WEBKIT_DOM_NODE (view->priv->main_node_p),
+                                      NULL);
+
+}
+
+static void
+browse_source_cb (GrlMediaSource *source,
+           guint browse_id,
+           GrlMedia *media,
+           guint remaining,
+           gpointer user_data,
+           const GError *error)
+{
+        WgpView *view;
+        WebKitDOMElement *li;
+        const gchar *title;
+
+        if (error) {
+                g_error ("Browse operation failed. Reason: %s", error->message);
+        }
+
+        view = WGP_VIEW (user_data);
+
+        if (media) {
+                title = grl_media_get_title (media);
+
+                li = webkit_dom_document_create_element (view->priv->document, "li", NULL);
+                webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (li),
+                                                  g_strdup_printf ("Media: %s", title),
+                                                  NULL);
+                webkit_dom_element_set_attribute (li, "id", title, NULL);
+                webkit_dom_node_append_child (WEBKIT_DOM_NODE (view->priv->sources_node_ul),
+                                              WEBKIT_DOM_NODE (li),
+                                              NULL);
+
+        }
+
+        if (remaining == 0) {
+                g_debug ("Browse operation finished!");
+        } else {
+                g_debug ("%d results remaining!", remaining);
+        }
+
+        g_object_unref (media);
+}
+
+static void
+source_clicked_cb (WebKitDOMEventTarget* target,
+                   WebKitDOMEvent* event,
+                   WgpViewAndSourceStrut* view_and_source)
+{
+        WgpView *view;
+        GrlMetadataSource *source;
+        const gchar *source_name;
+        GList * keys;
+
+        view = view_and_source->view;
+        source = view_and_source->source;
+
+        source_name = grl_metadata_source_get_name (source);
+        g_debug ("Source clicked: '%s'", source_name);
+
+        webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (view->priv->main_node_p),
+                                          g_strdup_printf ("Source selected: %s", source_name),
+                                          NULL);
+
+        if (grl_metadata_source_supported_operations (source) & GRL_OP_BROWSE) {
+                g_debug ("Browsing source: %s", source_name);
+                keys = grl_metadata_key_list_new (GRL_METADATA_KEY_TITLE,
+                                                  GRL_METADATA_KEY_DURATION,
+                                                  GRL_METADATA_KEY_URL,
+                                                  GRL_METADATA_KEY_CHILDCOUNT,
+                                                  NULL);
+                grl_media_source_browse (GRL_MEDIA_SOURCE (source),
+                                         NULL,
+                                         keys,
+                                         0, 5,
+                                         GRL_RESOLVE_IDLE_RELAY,
+                                         browse_source_cb,
+                                         view);
+        }
 }
 
 static void
 source_added_cb (GrlPluginRegistry *registry, GrlMediaPlugin *source, WgpView *view)
 {
-        WebKitDOMElement *p;
-
+        WebKitDOMElement *li;
+        WgpViewAndSourceStrut *view_and_source;
         const gchar *source_name;
+
         source_name = grl_metadata_source_get_name (GRL_METADATA_SOURCE (source));
         g_debug ("Detected new source available: '%s'", source_name);
 
-        p = webkit_dom_document_create_element (view->priv->document, "P", NULL);
-        webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (p),
+        li = webkit_dom_document_create_element (view->priv->document, "li", NULL);
+        webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (li),
                                           g_strdup_printf ("Plugin: %s", source_name),
                                           NULL);
-        webkit_dom_node_append_child (view->priv->sources_node,
-                                      WEBKIT_DOM_NODE (p),
+        webkit_dom_element_set_attribute (li, "id", source_name, NULL);
+        webkit_dom_node_append_child (WEBKIT_DOM_NODE (view->priv->sources_node_ul),
+                                      WEBKIT_DOM_NODE (li),
                                       NULL);
+
+        view_and_source = g_new0 (WgpViewAndSourceStrut, 1);
+        view_and_source->view = view;
+        view_and_source->source = GRL_METADATA_SOURCE (source);
+        g_signal_connect(li,
+                         "click-event",
+                         G_CALLBACK(source_clicked_cb),
+                         view_and_source);
 }
 
 void
