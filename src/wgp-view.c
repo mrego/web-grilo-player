@@ -143,7 +143,10 @@ browse_source_cb (GrlMediaSource *source,
 {
         WgpView *view;
         WebKitDOMElement *li;
+        WebKitDOMNode *ul;
+        WebKitDOMElement *new_li;
         const gchar *title;
+        gboolean create_ul = TRUE;
 
         if (error) {
                 g_error ("Browse operation failed. Reason: %s", error->message);
@@ -154,13 +157,33 @@ browse_source_cb (GrlMediaSource *source,
         if (media) {
                 title = grl_media_get_title (media);
 
-                li = webkit_dom_document_create_element (view->priv->document, "li", NULL);
-                webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (li),
+                li = webkit_dom_document_get_element_by_id (view->priv->document,
+                                                            grl_metadata_source_get_name (GRL_METADATA_SOURCE (source)));
+                if (webkit_dom_node_has_child_nodes (WEBKIT_DOM_NODE (li))) {
+                        ul = webkit_dom_node_get_last_child (WEBKIT_DOM_NODE (li));
+
+                        g_print ("Name: %s\n", webkit_dom_node_get_node_name (ul));
+                        if (g_strcmp0 ("UL", webkit_dom_node_get_node_name (ul)) == 0) {
+                                g_debug ("<ul> already created");
+                                create_ul = FALSE;
+                        }
+                }
+
+                if (create_ul) {
+                        g_debug ("Creating <ul>");
+                        ul = WEBKIT_DOM_NODE (webkit_dom_document_create_element (view->priv->document, "ul", NULL));
+                        webkit_dom_node_append_child (WEBKIT_DOM_NODE (li),
+                                                      ul,
+                                                      NULL);
+                }
+
+                new_li = webkit_dom_document_create_element (view->priv->document, "li", NULL);
+                webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (new_li),
                                                   g_strdup_printf ("Media: %s", title),
                                                   NULL);
-                webkit_dom_element_set_attribute (li, "id", title, NULL);
-                webkit_dom_node_append_child (WEBKIT_DOM_NODE (view->priv->sources_node_ul),
-                                              WEBKIT_DOM_NODE (li),
+                webkit_dom_element_set_attribute (new_li, "id", title, NULL);
+                webkit_dom_node_append_child (ul,
+                                              WEBKIT_DOM_NODE (new_li),
                                               NULL);
 
         }
