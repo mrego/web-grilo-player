@@ -20,29 +20,242 @@
 #include <webkit/webkit.h>
 #include <grilo.h>
 
-#include <wgp-view.h>
+static WebKitDOMDocument *document;
+static WebKitDOMNode *sources_node;
+static WebKitDOMNode *main_node;
+static GrlMediaSource *current_source;
+
+static void
+browse_source_cb (GrlMediaSource *source,
+                  guint browse_id,
+                  GrlMedia *media,
+                  guint remaining,
+                  gpointer user_data,
+                  const GError *error);
+
+
+static void
+remove_all_children (WebKitDOMNode *parent)
+{
+        WebKitDOMNode* node;
+
+        while (webkit_dom_node_has_child_nodes (parent)) {
+                node =  webkit_dom_node_get_first_child (parent);
+                webkit_dom_node_remove_child (parent, node, NULL);
+        }
+
+}
+
+
+static void
+media_clicked_cb (WebKitDOMEventTarget* target,
+                  WebKitDOMEvent* event,
+                  GrlMedia *media)
+{
+        WebKitDOMElement *element = NULL;
+        GList * keys;
+        const gchar *title;
+        const gchar *url;
+
+        title = grl_media_get_title(media);
+        g_debug ("Media clicked: '%s'", title);
+
+        remove_all_children (main_node);
+        webkit_dom_node_set_text_content (
+                main_node,
+                g_strdup_printf ("Media selected: %s", title),
+                NULL);
+
+        if (GRL_IS_MEDIA_BOX (media)) {
+                remove_all_children (sources_node);
+
+                g_debug ("Browsing media: %s", title);
+                keys = grl_metadata_key_list_new (GRL_METADATA_KEY_TITLE,
+                                                  GRL_METADATA_KEY_DURATION,
+                                                  GRL_METADATA_KEY_URL,
+                                                  GRL_METADATA_KEY_CHILDCOUNT,
+                                                  NULL);
+                grl_media_source_browse (current_source,
+                                         media,
+                                         keys,
+                                         0, 100,
+                                         GRL_RESOLVE_IDLE_RELAY,
+                                         browse_source_cb,
+                                         NULL);
+        } else {
+                g_debug ("Play media: %s", title);
+                url = grl_media_get_url (media);
+
+                if (GRL_IS_MEDIA_IMAGE (media)) {
+                        element = webkit_dom_document_create_element (document, "img", NULL);
+                }
+                if (GRL_IS_MEDIA_AUDIO (media)) {
+                        element = webkit_dom_document_create_element (document, "audio", NULL);
+                        webkit_dom_element_set_attribute (element, "controls", "controls", NULL);
+                        webkit_dom_element_set_attribute (element, "autoplay", "true", NULL);
+                }
+                if (GRL_IS_MEDIA_VIDEO (media)) {
+                        element = webkit_dom_document_create_element (document, "video", NULL);
+                        webkit_dom_element_set_attribute (element, "controls", "controls", NULL);
+                        webkit_dom_element_set_attribute (element, "autoplay", "true", NULL);
+                }
+
+                if (element != NULL) {
+                        webkit_dom_node_append_child (
+                                main_node,
+                                WEBKIT_DOM_NODE (webkit_dom_document_create_element (document, "br", NULL)),
+                                NULL);
+
+                        webkit_dom_element_set_attribute (element, "src", url, NULL);
+                        webkit_dom_node_append_child (main_node,
+                                                      WEBKIT_DOM_NODE (element),
+                                                      NULL);
+                } else {
+                        g_error ("Unknown media type");
+                }
+        }
+
+}
+
+
+static void
+browse_source_cb (GrlMediaSource *source,
+                  guint browse_id,
+                  GrlMedia *media,
+                  guint remaining,
+                  gpointer user_data,
+                  const GError *error)
+{
+        WebKitDOMElement *paragraph;
+        const gchar *title;
+        gchar *text;
+
+        if (error) {
+                g_error ("Browse operation failed. Reason: %s", error->message);
+        }
+
+        if (media) {
+                title = grl_media_get_title (media);
+                paragraph = webkit_dom_document_create_element (document,
+                                                                "p",
+                                                                NULL);
+                webkit_dom_element_set_attribute (paragraph, "id", title, NULL);
+                if (GRL_IS_MEDIA_BOX (media)) {
+                        text = g_strdup_printf ("+ %s", title);
+                } else {
+                        text = g_strdup_printf ("- %s", title);
+                }
+                webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (paragraph),
+                                                  text,
+                                                  NULL);
+                webkit_dom_node_append_child (sources_node,
+                                              WEBKIT_DOM_NODE (paragraph),
+                                              NULL);
+
+                current_source = source;
+                g_signal_connect(paragraph,
+                                 "click-event",
+                                 G_CALLBACK(media_clicked_cb),
+                                 media);
+        }
+
+        if (remaining == 0) {
+                g_debug ("Browse operation finished!");
+        } else {
+                g_debug ("%d results remaining!", remaining);
+        }
+}
+
+
+static void
+source_clicked_cb (WebKitDOMEventTarget* target,
+                   WebKitDOMEvent* event,
+                   GrlMetadataSource *source)
+{
+        const gchar *source_name;
+        GList * keys;
+
+        source_name = grl_metadata_source_get_name (source);
+        g_debug ("Source clicked: '%s'", source_name);
+
+        webkit_dom_node_set_text_content (
+                WEBKIT_DOM_NODE (main_node),
+                g_strdup_printf ("Source selected: %s", source_name),
+                NULL);
+        remove_all_children (sources_node);
+
+        if (grl_metadata_source_supported_operations (source) & GRL_OP_BROWSE) {
+                g_debug ("Browsing source: %s", source_name);
+                keys = grl_metadata_key_list_new (GRL_METADATA_KEY_TITLE,
+                                                  GRL_METADATA_KEY_DURATION,
+                                                  GRL_METADATA_KEY_URL,
+                                                  GRL_METADATA_KEY_CHILDCOUNT,
+                                                  NULL);
+                grl_media_source_browse (GRL_MEDIA_SOURCE (source),
+                                         NULL,
+                                         keys,
+                                         0, 100,
+                                         GRL_RESOLVE_IDLE_RELAY,
+                                         browse_source_cb,
+                                         NULL);
+        }
+}
+
+
+static void
+source_added_cb (GrlPluginRegistry *registry,
+                 GrlMediaPlugin *source,
+                 gpointer user_data)
+{
+        WebKitDOMElement *paragraph;
+        const gchar *source_name;
+
+        source_name = grl_metadata_source_get_name (
+                GRL_METADATA_SOURCE (source));
+        g_debug ("Detected new source available: '%s'", source_name);
+
+        paragraph = webkit_dom_document_create_element (document,
+                                                        "p",
+                                                        NULL);
+        webkit_dom_element_set_attribute (paragraph, "id", source_name, NULL);
+        webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (paragraph),
+                                          g_strdup_printf ("+ %s", source_name),
+                                          NULL);
+        webkit_dom_node_append_child (sources_node,
+                                      WEBKIT_DOM_NODE (paragraph),
+                                      NULL);
+        g_signal_connect(paragraph,
+                         "click-event",
+                         G_CALLBACK(source_clicked_cb),
+                         GRL_METADATA_SOURCE (source));
+}
+
 
 static void
 web_view_loaded_cb (WebKitWebView *view,
                     WebKitWebFrame *frame,
                     gpointer user_data)
 {
-        WebKitDOMDocument *document;
-        WebKitDOMNode *sources_node, *main_node;
-        WgpView *wgp_view;
+        GrlPluginRegistry *registry;
 
         document = webkit_web_view_get_dom_document (view);
+
         sources_node = WEBKIT_DOM_NODE (
                 webkit_dom_document_get_element_by_id (document, "sources"));
         main_node = WEBKIT_DOM_NODE (
                 webkit_dom_document_get_element_by_id (document, "main"));
 
-        wgp_view = wgp_view_new ();
-        wgp_view_set_document (wgp_view, document);
-        wgp_view_set_sources_node (wgp_view, sources_node);
-        wgp_view_set_main_node (wgp_view, main_node);
+        /* Load grilo plugins */
+        registry = grl_plugin_registry_get_default ();
 
-        wgp_view_run (wgp_view);
+        g_signal_connect (registry,
+                          "source-added",
+                          G_CALLBACK (source_added_cb),
+                          NULL);
+
+        if (!grl_plugin_registry_load_all (registry)) {
+                g_error ("Failed to load plugins.");
+        }
 }
 
 

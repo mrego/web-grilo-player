@@ -7,9 +7,7 @@ INCLUDES =					\
 noinst_PROGRAMS = wgp
 
 wgp_SOURCES =		\
-	wgp-main.c	\
-	wgp-view.h	\
-	wgp-view.c
+	wgp-main.c
 
 wgp_LDFLAGS =	\
 	$(PLAYER_LIBS)
