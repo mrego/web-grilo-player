@@ -48,12 +48,22 @@ typedef struct WgpViewAndSourceStrut {
 typedef struct WgpViewAndMediaStrut {
         WgpView *view;
         GrlMedia *media;
+        GrlMetadataSource *source;
 } WgpViewAndMediaStrut;
 
 
 /* Private methods headers */
 void
 wgp_view_load_plugins (WgpView *view);
+
+
+static void
+browse_source_cb (GrlMediaSource *source,
+                  guint browse_id,
+                  GrlMedia *media,
+                  guint remaining,
+                  gpointer user_data,
+                  const GError *error);
 
 
 static void
@@ -145,7 +155,7 @@ media_clicked_cb (WebKitDOMEventTarget* target,
 {
         WgpView *view;
         GrlMedia *media;
-        WebKitDOMElement *video;
+        WebKitDOMElement *audio;
         const gchar *title;
         const gchar *url;
 
@@ -161,12 +171,46 @@ media_clicked_cb (WebKitDOMEventTarget* target,
                                           g_strdup_printf ("Media selected: %s - URL: %s", title, url),
                                           NULL);
 
-        video = webkit_dom_document_create_element (view->priv->document, "video", NULL);
-        webkit_dom_element_set_attribute (video, "src", url, NULL);
+        audio = webkit_dom_document_create_element (view->priv->document, "audio", NULL);
+        webkit_dom_element_set_attribute (audio, "src", url, NULL);
+        webkit_dom_element_set_attribute (audio, "controls", "controls", NULL);
         webkit_dom_node_append_child (WEBKIT_DOM_NODE (view->priv->main_node_p),
-                                      WEBKIT_DOM_NODE (video),
+                                      WEBKIT_DOM_NODE (audio),
                                       NULL);
 
+}
+
+
+static void
+media_box_clicked_cb (WebKitDOMEventTarget* target,
+                      WebKitDOMEvent* event,
+                      WgpViewAndMediaStrut* view_and_media)
+{
+        WgpView *view;
+        GrlMedia *media;
+        GrlMetadataSource *source;
+        const gchar *title;
+        GList * keys;
+
+        view = view_and_media->view;
+        media = view_and_media->media;
+        source = view_and_media->source;
+
+        title = grl_media_get_title (media);
+        g_debug ("Browsing media box: %s", title);
+
+        keys = grl_metadata_key_list_new (GRL_METADATA_KEY_TITLE,
+                                          GRL_METADATA_KEY_DURATION,
+                                          GRL_METADATA_KEY_URL,
+                                          GRL_METADATA_KEY_CHILDCOUNT,
+                                          NULL);
+        grl_media_source_browse (GRL_MEDIA_SOURCE (source),
+                                 media,
+                                 keys,
+                                 0, 5,
+                                 GRL_RESOLVE_IDLE_RELAY,
+                                 browse_source_cb,
+                                 view);
 }
 
 
@@ -193,6 +237,7 @@ browse_source_cb (GrlMediaSource *source,
         view = WGP_VIEW (user_data);
 
         if (media) {
+
                 title = grl_media_get_title (media);
 
                 li = webkit_dom_document_get_element_by_id (view->priv->document,
@@ -223,14 +268,24 @@ browse_source_cb (GrlMediaSource *source,
                                               WEBKIT_DOM_NODE (new_li),
                                               NULL);
 
-                view_and_media = g_new0 (WgpViewAndMediaStrut, 1);
-                view_and_media->view = view;
-                view_and_media->media = media;
-                g_signal_connect(li,
-                                 "click-event",
-                                 G_CALLBACK(media_clicked_cb),
-                                 view_and_media);
-
+                if (GRL_IS_MEDIA_BOX (media)) {
+                        view_and_media = g_new0 (WgpViewAndMediaStrut, 1);
+                        view_and_media->view = view;
+                        view_and_media->media = media;
+                        view_and_media->source = GRL_METADATA_SOURCE (source);
+                        g_signal_connect(li,
+                                         "click-event",
+                                         G_CALLBACK(media_box_clicked_cb),
+                                         view_and_media);
+                } else {
+                        view_and_media = g_new0 (WgpViewAndMediaStrut, 1);
+                        view_and_media->view = view;
+                        view_and_media->media = media;
+                        g_signal_connect(li,
+                                         "click-event",
+                                         G_CALLBACK(media_clicked_cb),
+                                         view_and_media);
+                }
         }
 
         if (remaining == 0) {
