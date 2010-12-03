@@ -45,6 +45,11 @@ typedef struct WgpViewAndSourceStrut {
         GrlMetadataSource *source;
 } WgpViewAndSourceStrut;
 
+typedef struct WgpViewAndMediaStrut {
+        WgpView *view;
+        GrlMedia *media;
+} WgpViewAndMediaStrut;
+
 
 /* Private methods headers */
 void
@@ -134,17 +139,50 @@ wgp_view_set_main_node (WgpView *view, WebKitDOMNode *main_node)
 }
 
 static void
+media_clicked_cb (WebKitDOMEventTarget* target,
+                  WebKitDOMEvent* event,
+                  WgpViewAndMediaStrut* view_and_media)
+{
+        WgpView *view;
+        GrlMedia *media;
+        WebKitDOMElement *video;
+        const gchar *title;
+        const gchar *url;
+
+        view = view_and_media->view;
+        media = view_and_media->media;
+
+        title = grl_media_get_title (media);
+        g_debug ("Media clicked: '%s'", title);
+
+        url = grl_media_get_url (media);
+
+        webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (view->priv->main_node_p),
+                                          g_strdup_printf ("Media selected: %s - URL: %s", title, url),
+                                          NULL);
+
+        video = webkit_dom_document_create_element (view->priv->document, "video", NULL);
+        webkit_dom_element_set_attribute (video, "src", url, NULL);
+        webkit_dom_node_append_child (WEBKIT_DOM_NODE (view->priv->main_node_p),
+                                      WEBKIT_DOM_NODE (video),
+                                      NULL);
+
+}
+
+
+static void
 browse_source_cb (GrlMediaSource *source,
-           guint browse_id,
-           GrlMedia *media,
-           guint remaining,
-           gpointer user_data,
-           const GError *error)
+                  guint browse_id,
+                  GrlMedia *media,
+                  guint remaining,
+                  gpointer user_data,
+                  const GError *error)
 {
         WgpView *view;
         WebKitDOMElement *li;
         WebKitDOMNode *ul;
         WebKitDOMElement *new_li;
+        WgpViewAndMediaStrut *view_and_media;
         const gchar *title;
         gboolean create_ul = TRUE;
 
@@ -185,6 +223,14 @@ browse_source_cb (GrlMediaSource *source,
                                               WEBKIT_DOM_NODE (new_li),
                                               NULL);
 
+                view_and_media = g_new0 (WgpViewAndMediaStrut, 1);
+                view_and_media->view = view;
+                view_and_media->media = media;
+                g_signal_connect(li,
+                                 "click-event",
+                                 G_CALLBACK(media_clicked_cb),
+                                 view_and_media);
+
         }
 
         if (remaining == 0) {
@@ -192,8 +238,6 @@ browse_source_cb (GrlMediaSource *source,
         } else {
                 g_debug ("%d results remaining!", remaining);
         }
-
-        g_object_unref (media);
 }
 
 static void
