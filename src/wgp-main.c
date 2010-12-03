@@ -28,41 +28,14 @@ web_view_loaded_cb (WebKitWebView *view,
                     gpointer user_data)
 {
         WebKitDOMDocument *document;
-        WebKitDOMNodeList *divs;
-        WebKitDOMNamedNodeMap *map;
-        WebKitDOMNode *node, *id, *sources_node, *main_node;
+        WebKitDOMNode *sources_node, *main_node;
         WgpView *wgp_view;
 
-        gulong divs_n, i;
-
         document = webkit_web_view_get_dom_document (view);
-
-        divs = webkit_dom_document_get_elements_by_tag_name (document, "div");
-        divs_n = webkit_dom_node_list_get_length (divs);
-
-        sources_node = NULL;
-        main_node = NULL;
-
-        for (i = 0; i < divs_n; i++) {
-                node = webkit_dom_node_list_item (divs, i);
-
-                if (webkit_dom_node_has_attributes (node)) {
-                        map = webkit_dom_node_get_attributes (node);
-                        id = webkit_dom_named_node_map_get_named_item (map, "id");
-
-                        if (g_strcmp0 ("sources",
-                                    webkit_dom_node_get_node_value (id))) {
-                                sources_node = node;
-                                continue;
-                        }
-
-                        if (g_strcmp0 ("main",
-                                    webkit_dom_node_get_node_value (id))) {
-                                main_node = node;
-                                continue;
-                        }
-                }
-        }
+        sources_node = WEBKIT_DOM_NODE (
+                webkit_dom_document_get_element_by_id (document, "sources"));
+        main_node = WEBKIT_DOM_NODE (
+                webkit_dom_document_get_element_by_id (document, "main"));
 
         wgp_view = wgp_view_new ();
         wgp_view_set_document (wgp_view, document);
