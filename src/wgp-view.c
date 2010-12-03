@@ -162,7 +162,6 @@ browse_source_cb (GrlMediaSource *source,
                 if (webkit_dom_node_has_child_nodes (WEBKIT_DOM_NODE (li))) {
                         ul = webkit_dom_node_get_last_child (WEBKIT_DOM_NODE (li));
 
-                        g_print ("Name: %s\n", webkit_dom_node_get_node_name (ul));
                         if (g_strcmp0 ("UL", webkit_dom_node_get_node_name (ul)) == 0) {
                                 g_debug ("<ul> already created");
                                 create_ul = FALSE;
@@ -237,7 +236,7 @@ source_clicked_cb (WebKitDOMEventTarget* target,
 static void
 source_added_cb (GrlPluginRegistry *registry, GrlMediaPlugin *source, WgpView *view)
 {
-        WebKitDOMElement *li;
+        WebKitDOMElement *li, *span;
         WgpViewAndSourceStrut *view_and_source;
         const gchar *source_name;
 
@@ -245,18 +244,23 @@ source_added_cb (GrlPluginRegistry *registry, GrlMediaPlugin *source, WgpView *v
         g_debug ("Detected new source available: '%s'", source_name);
 
         li = webkit_dom_document_create_element (view->priv->document, "li", NULL);
-        webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (li),
-                                          g_strdup_printf ("Plugin: %s", source_name),
-                                          NULL);
         webkit_dom_element_set_attribute (li, "id", source_name, NULL);
         webkit_dom_node_append_child (WEBKIT_DOM_NODE (view->priv->sources_node_ul),
                                       WEBKIT_DOM_NODE (li),
                                       NULL);
 
+        span = webkit_dom_document_create_element (view->priv->document, "span", NULL);
+        webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (span),
+                                          g_strdup_printf ("Plugin: %s", source_name),
+                                          NULL);
+        webkit_dom_node_append_child (WEBKIT_DOM_NODE (li),
+                                      WEBKIT_DOM_NODE (span),
+                                      NULL);
+
         view_and_source = g_new0 (WgpViewAndSourceStrut, 1);
         view_and_source->view = view;
         view_and_source->source = GRL_METADATA_SOURCE (source);
-        g_signal_connect(li,
+        g_signal_connect(span,
                          "click-event",
                          G_CALLBACK(source_clicked_cb),
                          view_and_source);
