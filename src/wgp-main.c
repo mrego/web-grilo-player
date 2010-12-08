@@ -21,10 +21,12 @@
 #include <grilo.h>
 #include "wgp-util.h"
 
-static WebKitDOMDocument *document;
-static WebKitDOMNode *sources_node;
-static WebKitDOMNode *main_node;
-static GrlMediaSource *current_source;
+static WebKitDOMDocument *document = NULL;
+static WebKitDOMNode *sources_node = NULL;
+static WebKitDOMNode *main_node = NULL;
+static GrlMediaSource *current_source = NULL;
+static GList *breadcrumbs_list = NULL;
+
 
 static void
 browse_source_cb (GrlMediaSource *source,
@@ -33,6 +35,101 @@ browse_source_cb (GrlMediaSource *source,
                   guint remaining,
                   gpointer user_data,
                   const GError *error);
+
+static void
+media_clicked_cb (WebKitDOMEventTarget* target,
+                  WebKitDOMEvent* event,
+                  GrlMedia *media);
+
+static void
+source_clicked_cb (WebKitDOMEventTarget* target,
+                   WebKitDOMEvent* event,
+                   GrlMetadataSource *source);
+
+static void
+draw_link (gpointer source_or_media, gpointer node) {
+        GrlMetadataSource *source;
+        GrlMedia *media;
+        WebKitDOMNode *breadcrumbs_node;
+        WebKitDOMElement *link;
+        const gchar *title;
+
+        breadcrumbs_node = WEBKIT_DOM_NODE (node);
+
+        link = webkit_dom_document_create_element (document, "li", NULL);
+
+        if (GRL_IS_MEDIA (source_or_media)) {
+                media = GRL_MEDIA (source_or_media);
+                title = grl_media_get_title (media);
+
+                webkit_dom_node_set_text_content (
+                        WEBKIT_DOM_NODE (link),
+                        g_strdup_printf ("%s", title),
+                        NULL);
+
+                g_signal_connect (link,
+                                  "click-event",
+                                  G_CALLBACK (media_clicked_cb),
+                                  media);
+        } else if (GRL_IS_METADATA_SOURCE (source_or_media)) {
+                source = GRL_METADATA_SOURCE (source_or_media);
+                title = grl_metadata_source_get_name (source);
+
+                webkit_dom_node_set_text_content (
+                        WEBKIT_DOM_NODE (link),
+                        g_strdup_printf ("%s", title),
+                        NULL);
+
+                g_signal_connect(link,
+                                 "click-event",
+                                 G_CALLBACK(source_clicked_cb),
+                                 source);
+        } else {
+                g_error ("Wrong type for source_or_media param");
+        }
+
+        webkit_dom_node_append_child (breadcrumbs_node,
+                                      WEBKIT_DOM_NODE (link),
+                                      NULL);
+}
+
+static void
+repaint_up_link ()
+{
+        WebKitDOMNode *breadcrumbs_node;
+        WebKitDOMElement *breadcrumbs_ul;
+
+        breadcrumbs_node = WEBKIT_DOM_NODE (
+                webkit_dom_document_get_element_by_id (document, "breadcrumbs"));
+        wgp_util_remove_all_children (breadcrumbs_node);
+
+        breadcrumbs_ul = webkit_dom_document_create_element (document, "ul", NULL);
+
+        webkit_dom_node_append_child (
+                breadcrumbs_node,
+                WEBKIT_DOM_NODE (breadcrumbs_ul),
+                NULL);
+
+        g_list_foreach (breadcrumbs_list, draw_link, breadcrumbs_ul);
+}
+
+
+static void
+breadcrumbs_set_last (gpointer source_or_media)
+{
+        GList *element;
+        element = g_list_find (breadcrumbs_list, source_or_media);
+
+        if (element != NULL) {
+                while (element != g_list_last (breadcrumbs_list)) {
+                        breadcrumbs_list = g_list_remove (breadcrumbs_list, g_list_last (breadcrumbs_list)->data);
+                }
+        } else {
+                breadcrumbs_list = g_list_append (breadcrumbs_list, source_or_media);
+        }
+
+        repaint_up_link ();
+}
 
 
 static void
@@ -45,7 +142,7 @@ media_clicked_cb (WebKitDOMEventTarget* target,
         const gchar *title;
         const gchar *url;
 
-        title = grl_media_get_title(media);
+        title = grl_media_get_title (media);
         g_debug ("Media clicked: '%s'", title);
 
         wgp_util_remove_all_children (main_node);
@@ -70,6 +167,7 @@ media_clicked_cb (WebKitDOMEventTarget* target,
                                          GRL_RESOLVE_IDLE_RELAY,
                                          browse_source_cb,
                                          NULL);
+                breadcrumbs_set_last (media);
         } else {
                 g_debug ("Play media: %s", title);
                 url = grl_media_get_url (media);
@@ -141,10 +239,10 @@ browse_source_cb (GrlMediaSource *source,
                                               NULL);
 
                 current_source = source;
-                g_signal_connect(paragraph,
-                                 "click-event",
-                                 G_CALLBACK(media_clicked_cb),
-                                 media);
+                g_signal_connect (paragraph,
+                                  "click-event",
+                                  G_CALLBACK (media_clicked_cb),
+                                  media);
         }
 
         if (remaining == 0) {
@@ -186,6 +284,7 @@ source_clicked_cb (WebKitDOMEventTarget* target,
                                          GRL_RESOLVE_IDLE_RELAY,
                                          browse_source_cb,
                                          NULL);
+                breadcrumbs_set_last (source);
         }
 }
 
