@@ -24,6 +24,9 @@
 static WebKitDOMDocument *document = NULL;
 static WebKitDOMNode *sources_node = NULL;
 static WebKitDOMNode *main_node = NULL;
+
+static GrlPluginRegistry *registry = NULL;
+
 static GrlMediaSource *current_source = NULL;
 static GList *breadcrumbs_list = NULL;
 
@@ -47,7 +50,43 @@ source_clicked_cb (WebKitDOMEventTarget* target,
                    GrlMetadataSource *source);
 
 static void
-draw_link (gpointer source_or_media, gpointer node) {
+source_added_cb (GrlPluginRegistry *registry,
+                 GrlMediaPlugin *source,
+                 gpointer user_data);
+
+static void
+breadcrumbs_set_last (gpointer source_or_media);
+
+
+static void
+plugins_clicked_cb (WebKitDOMEventTarget* target,
+                    WebKitDOMEvent* event,
+                    gpointer user_data)
+{
+        GList *sources;
+        GList *l;
+
+        wgp_util_remove_all_children (main_node);
+        wgp_util_remove_all_children (sources_node);
+
+        webkit_dom_node_set_text_content (
+                main_node,
+                "Grilo plugins",
+                NULL);
+
+        breadcrumbs_set_last (NULL);
+
+        sources = grl_plugin_registry_get_sources (registry, FALSE);
+
+        for (l = sources; l; l = l->next) {
+                source_added_cb (registry, GRL_MEDIA_PLUGIN (l->data), NULL);
+        }
+}
+
+
+static void
+draw_link (gpointer source_or_media, gpointer node)
+{
         GrlMetadataSource *source;
         GrlMedia *media;
         WebKitDOMNode *breadcrumbs_node;
@@ -80,10 +119,10 @@ draw_link (gpointer source_or_media, gpointer node) {
                         g_strdup_printf ("%s", title),
                         NULL);
 
-                g_signal_connect(link,
-                                 "click-event",
-                                 G_CALLBACK(source_clicked_cb),
-                                 source);
+                g_signal_connect (link,
+                                  "click-event",
+                                  G_CALLBACK (source_clicked_cb),
+                                  source);
         } else {
                 g_error ("Wrong type for source_or_media param");
         }
@@ -98,17 +137,31 @@ repaint_up_link ()
 {
         WebKitDOMNode *breadcrumbs_node;
         WebKitDOMElement *breadcrumbs_ul;
+        WebKitDOMElement *link;
 
         breadcrumbs_node = WEBKIT_DOM_NODE (
                 webkit_dom_document_get_element_by_id (document, "breadcrumbs"));
         wgp_util_remove_all_children (breadcrumbs_node);
 
         breadcrumbs_ul = webkit_dom_document_create_element (document, "ul", NULL);
-
         webkit_dom_node_append_child (
                 breadcrumbs_node,
                 WEBKIT_DOM_NODE (breadcrumbs_ul),
                 NULL);
+
+
+        link = webkit_dom_document_create_element (document, "li", NULL);
+        webkit_dom_node_set_text_content (
+                WEBKIT_DOM_NODE (link),
+                "Plugins",
+                NULL);
+        g_signal_connect (link,
+                          "click-event",
+                          G_CALLBACK (plugins_clicked_cb),
+                          NULL);
+        webkit_dom_node_append_child (WEBKIT_DOM_NODE (breadcrumbs_ul),
+                                      WEBKIT_DOM_NODE (link),
+                                      NULL);
 
         g_list_foreach (breadcrumbs_list, draw_link, breadcrumbs_ul);
 }
@@ -118,14 +171,23 @@ static void
 breadcrumbs_set_last (gpointer source_or_media)
 {
         GList *element;
-        element = g_list_find (breadcrumbs_list, source_or_media);
 
-        if (element != NULL) {
-                while (element != g_list_last (breadcrumbs_list)) {
-                        breadcrumbs_list = g_list_remove (breadcrumbs_list, g_list_last (breadcrumbs_list)->data);
-                }
+        if (source_or_media == NULL) {
+                breadcrumbs_list = NULL;
         } else {
-                breadcrumbs_list = g_list_append (breadcrumbs_list, source_or_media);
+                element = g_list_find (breadcrumbs_list, source_or_media);
+
+                if (element != NULL) {
+                        while (element != g_list_last (breadcrumbs_list)) {
+                                breadcrumbs_list = g_list_remove (
+                                        breadcrumbs_list,
+                                        g_list_last (breadcrumbs_list)->data);
+                        }
+                } else {
+                        breadcrumbs_list = g_list_append (
+                                breadcrumbs_list,
+                                source_or_media);
+                }
         }
 
         repaint_up_link ();
@@ -319,18 +381,14 @@ source_added_cb (GrlPluginRegistry *registry,
 
 
 static void
-web_view_loaded_cb (WebKitWebView *view,
-                    WebKitWebFrame *frame,
-                    gpointer user_data)
+load_grilo_plugins ()
 {
-        GrlPluginRegistry *registry;
+        webkit_dom_node_set_text_content (
+                main_node,
+                "Grilo plugins",
+                NULL);
 
-        document = webkit_web_view_get_dom_document (view);
-
-        sources_node = WEBKIT_DOM_NODE (
-                webkit_dom_document_get_element_by_id (document, "sources"));
-        main_node = WEBKIT_DOM_NODE (
-                webkit_dom_document_get_element_by_id (document, "main"));
+        breadcrumbs_set_last (NULL);
 
         /* Load grilo plugins */
         registry = grl_plugin_registry_get_default ();
@@ -343,6 +401,21 @@ web_view_loaded_cb (WebKitWebView *view,
         if (!grl_plugin_registry_load_all (registry)) {
                 g_error ("Failed to load plugins.");
         }
+}
+
+static void
+web_view_loaded_cb (WebKitWebView *view,
+                    WebKitWebFrame *frame,
+                    gpointer user_data)
+{
+        document = webkit_web_view_get_dom_document (view);
+
+        sources_node = WEBKIT_DOM_NODE (
+                webkit_dom_document_get_element_by_id (document, "sources"));
+        main_node = WEBKIT_DOM_NODE (
+                webkit_dom_document_get_element_by_id (document, "main"));
+
+        load_grilo_plugins ();
 }
 
 
