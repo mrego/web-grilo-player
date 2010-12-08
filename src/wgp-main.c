@@ -19,6 +19,7 @@
 
 #include <webkit/webkit.h>
 #include <grilo.h>
+#include "wgp-util.h"
 
 static WebKitDOMDocument *document;
 static WebKitDOMNode *sources_node;
@@ -35,19 +36,6 @@ browse_source_cb (GrlMediaSource *source,
 
 
 static void
-remove_all_children (WebKitDOMNode *parent)
-{
-        WebKitDOMNode* node;
-
-        while (webkit_dom_node_has_child_nodes (parent)) {
-                node =  webkit_dom_node_get_first_child (parent);
-                webkit_dom_node_remove_child (parent, node, NULL);
-        }
-
-}
-
-
-static void
 media_clicked_cb (WebKitDOMEventTarget* target,
                   WebKitDOMEvent* event,
                   GrlMedia *media)
@@ -60,14 +48,14 @@ media_clicked_cb (WebKitDOMEventTarget* target,
         title = grl_media_get_title(media);
         g_debug ("Media clicked: '%s'", title);
 
-        remove_all_children (main_node);
+        wgp_util_remove_all_children (main_node);
         webkit_dom_node_set_text_content (
                 main_node,
                 g_strdup_printf ("Media selected: %s", title),
                 NULL);
 
         if (GRL_IS_MEDIA_BOX (media)) {
-                remove_all_children (sources_node);
+                wgp_util_remove_all_children (sources_node);
 
                 g_debug ("Browsing media: %s", title);
                 keys = grl_metadata_key_list_new (GRL_METADATA_KEY_TITLE,
@@ -182,7 +170,7 @@ source_clicked_cb (WebKitDOMEventTarget* target,
                 WEBKIT_DOM_NODE (main_node),
                 g_strdup_printf ("Source selected: %s", source_name),
                 NULL);
-        remove_all_children (sources_node);
+        wgp_util_remove_all_children (sources_node);
 
         if (grl_metadata_source_supported_operations (source) & GRL_OP_BROWSE) {
                 g_debug ("Browsing source: %s", source_name);
