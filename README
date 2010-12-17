@@ -6,5 +6,44 @@ Project in a very early stage.
 Main idea: Desktop application developed in HTML using WebKitGTK+ [1]_ to play
 multimedia content provided by Grilo [2]_.
 
+
+Requirements
+------------
+
+*Web Grilo Player* depends on:
+
+* GTK+ (``gtk+-2.0``)
+* WebKitGTK+ (``webkit-1.0``)
+* Grilo (``grilo-0.1``)
+
+
+Installation
+------------
+
+See the ``INSTALL`` file.
+
+
+Availability
+------------
+
+The cutting-edge version of this project is always available from the Git
+repository at http://gitorious.org/web-grilo-player/.
+
+
+License
+-------
+
+*Web Grilo Player* is released under the terms of the GNU General Public License
+version 3, or (at your option) any later version.
+
+Please read the ``COPYING`` file for details.
+
+
+Authors
+-------
+
+See the ``AUTHORS`` file.
+
+
 .. [1] http://www.webkitgtk.org/
 .. [2] http://live.gnome.org/Grilo
