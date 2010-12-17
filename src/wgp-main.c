@@ -437,6 +437,7 @@ main (gint argc, gchar **argv)
         uri_html = g_filename_to_uri(path_html, NULL, NULL);
 
         main_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+        gtk_window_set_title (GTK_WINDOW (main_window), "Web Grilo Player");
         scrolled_window = gtk_scrolled_window_new (NULL, NULL);
         web_view = webkit_web_view_new ();
 
