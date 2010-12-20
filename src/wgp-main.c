@@ -246,6 +246,7 @@ media_clicked_cb (WebKitDOMEventTarget* target,
                         element = webkit_dom_document_create_element (document, "video", NULL);
                         webkit_dom_element_set_attribute (element, "controls", "controls", NULL);
                         webkit_dom_element_set_attribute (element, "autoplay", "true", NULL);
+                        webkit_dom_element_set_attribute (element, "width", "400", NULL);
                 }
 
                 if (element != NULL) {
