@@ -1,4 +1,4 @@
-AC_INIT(web-grilo-player, 0.0.1)
+AC_INIT([Web Grilo Player], [0.0.1])
 AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
 
 AM_CONFIG_HEADER([config.h])
@@ -26,8 +26,8 @@ GNOME_MAINTAINER_MODE_DEFINES
 #*************
 
 PKG_CHECK_MODULES([PLAYER],
-	[gtk+-2.0
-	webkit-1.0 >= 1.3.6
+        [gtk+-2.0
+        webkit-1.0 >= 1.3.6
         grilo-0.1])
 
 PLAYER_LIBS="$PLAYER_LIBS"
@@ -54,6 +54,6 @@ AC_OUTPUT
 #********
 
 echo ""
-echo "WEB GRILO PLAYER $VERSION"
-echo "========================="
+echo "$PACKAGE_STRING"
+echo "======================"
 echo ""
