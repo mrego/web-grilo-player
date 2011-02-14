@@ -19,6 +19,7 @@
 
 #include <webkit/webkit.h>
 #include <grilo.h>
+#include "config.h"
 #include "wgp-util.h"
 
 static WebKitDOMDocument *document = NULL;
@@ -389,8 +390,6 @@ load_grilo_plugins ()
                 "Grilo plugins",
                 NULL);
 
-        breadcrumbs_set_last (NULL);
-
         /* Load grilo plugins */
         registry = grl_plugin_registry_get_default ();
 
@@ -405,16 +404,56 @@ load_grilo_plugins ()
 }
 
 static void
+fill_about (WebKitDOMNode *about_node)
+{
+        WebKitDOMNode *about_dialog_node = NULL;
+        WebKitDOMElement *icon = NULL;
+        WebKitDOMElement *element = NULL;
+        gchar *text = NULL;
+
+        icon = webkit_dom_document_create_element (document, "img", NULL);
+        webkit_dom_element_set_attribute (icon, "src", "/usr/share/icons/Tango/32x32/apps/help-browser.png", NULL);
+        webkit_dom_element_set_attribute (icon, "title", "About", NULL);
+        webkit_dom_element_set_attribute (icon, "onClick", "$('#about_dialog').dialog('open');", NULL);
+        webkit_dom_node_append_child (about_node,
+                                      WEBKIT_DOM_NODE (icon),
+                                      NULL);
+
+        element = webkit_dom_document_create_element (document, "p", NULL);
+        text = g_strdup_printf ("%s - %s",
+                                PACKAGE_STRING,
+                                "Desktop application developed in HTML using " \
+                                "WebKitGTK+ to play multimedia content provided by Grilo.");
+        webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (element),
+                                          text,
+                                          NULL);
+
+        about_dialog_node = WEBKIT_DOM_NODE (
+                webkit_dom_document_get_element_by_id (document, "about_dialog"));
+        webkit_dom_node_append_child (about_dialog_node,
+                                      WEBKIT_DOM_NODE (element),
+                                      NULL);
+}
+
+static void
 web_view_loaded_cb (WebKitWebView *view,
                     WebKitWebFrame *frame,
                     gpointer user_data)
 {
+        WebKitDOMNode *about_node = NULL;
+
         document = webkit_web_view_get_dom_document (view);
 
         sources_node = WEBKIT_DOM_NODE (
                 webkit_dom_document_get_element_by_id (document, "sources"));
         main_node = WEBKIT_DOM_NODE (
                 webkit_dom_document_get_element_by_id (document, "main"));
+        about_node = WEBKIT_DOM_NODE (
+                webkit_dom_document_get_element_by_id (document, "about"));
+
+        /* Initi DOM */
+        breadcrumbs_set_last (NULL);
+        fill_about (about_node);
 
         load_grilo_plugins ();
 }
