@@ -91,23 +91,29 @@ draw_link (gpointer source_or_media, gpointer node)
         GrlMetadataSource *source;
         GrlMedia *media;
         WebKitDOMNode *breadcrumbs_node;
-        WebKitDOMElement *link;
+        WebKitDOMElement *input;
+        WebKitDOMElement *label;
         const gchar *title;
 
         breadcrumbs_node = WEBKIT_DOM_NODE (node);
 
-        link = webkit_dom_document_create_element (document, "li", NULL);
+        input = webkit_dom_document_create_element (document, "input", NULL);
+        webkit_dom_element_set_attribute (input, "type", "radio", NULL);
+        label = webkit_dom_document_create_element (document, "label", NULL);
 
         if (GRL_IS_MEDIA (source_or_media)) {
                 media = GRL_MEDIA (source_or_media);
                 title = grl_media_get_title (media);
 
+                webkit_dom_element_set_attribute (input, "id", title, NULL);
+                webkit_dom_element_set_attribute (label, "for", title, NULL);
+
                 webkit_dom_node_set_text_content (
-                        WEBKIT_DOM_NODE (link),
+                        WEBKIT_DOM_NODE (label),
                         g_strdup_printf ("%s", title),
                         NULL);
 
-                g_signal_connect (link,
+                g_signal_connect (label,
                                   "click-event",
                                   G_CALLBACK (media_clicked_cb),
                                   media);
@@ -115,12 +121,15 @@ draw_link (gpointer source_or_media, gpointer node)
                 source = GRL_METADATA_SOURCE (source_or_media);
                 title = grl_metadata_source_get_name (source);
 
+                webkit_dom_element_set_attribute (input, "id", title, NULL);
+                webkit_dom_element_set_attribute (label, "for", title, NULL);
+
                 webkit_dom_node_set_text_content (
-                        WEBKIT_DOM_NODE (link),
+                        WEBKIT_DOM_NODE (label),
                         g_strdup_printf ("%s", title),
                         NULL);
 
-                g_signal_connect (link,
+                g_signal_connect (label,
                                   "click-event",
                                   G_CALLBACK (source_clicked_cb),
                                   source);
@@ -129,7 +138,10 @@ draw_link (gpointer source_or_media, gpointer node)
         }
 
         webkit_dom_node_append_child (breadcrumbs_node,
-                                      WEBKIT_DOM_NODE (link),
+                                      WEBKIT_DOM_NODE (input),
+                                      NULL);
+        webkit_dom_node_append_child (breadcrumbs_node,
+                                      WEBKIT_DOM_NODE (label),
                                       NULL);
 }
 
@@ -137,34 +149,46 @@ static void
 repaint_up_link ()
 {
         WebKitDOMNode *breadcrumbs_node;
-        WebKitDOMElement *breadcrumbs_ul;
-        WebKitDOMElement *link;
+        WebKitDOMElement *input;
+        WebKitDOMElement *label;
+        WebKitDOMElement *script;
 
         breadcrumbs_node = WEBKIT_DOM_NODE (
                 webkit_dom_document_get_element_by_id (document, "breadcrumbs"));
         wgp_util_remove_all_children (breadcrumbs_node);
 
-        breadcrumbs_ul = webkit_dom_document_create_element (document, "ul", NULL);
-        webkit_dom_node_append_child (
-                breadcrumbs_node,
-                WEBKIT_DOM_NODE (breadcrumbs_ul),
-                NULL);
+        input = webkit_dom_document_create_element (document, "input", NULL);
+        webkit_dom_element_set_attribute (input, "type", "radio", NULL);
+        webkit_dom_element_set_attribute (input, "id", "plugins", NULL);
 
-
-        link = webkit_dom_document_create_element (document, "li", NULL);
+        label = webkit_dom_document_create_element (document, "label", NULL);
+        webkit_dom_element_set_attribute (label, "for", "plugins", NULL);
         webkit_dom_node_set_text_content (
-                WEBKIT_DOM_NODE (link),
+                WEBKIT_DOM_NODE (label),
                 "Plugins",
                 NULL);
-        g_signal_connect (link,
+        g_signal_connect (label,
                           "click-event",
                           G_CALLBACK (plugins_clicked_cb),
                           NULL);
-        webkit_dom_node_append_child (WEBKIT_DOM_NODE (breadcrumbs_ul),
-                                      WEBKIT_DOM_NODE (link),
+
+        webkit_dom_node_append_child (breadcrumbs_node,
+                                      WEBKIT_DOM_NODE (input),
+                                      NULL);
+        webkit_dom_node_append_child (breadcrumbs_node,
+                                      WEBKIT_DOM_NODE (label),
                                       NULL);
 
-        g_list_foreach (breadcrumbs_list, draw_link, breadcrumbs_ul);
+        g_list_foreach (breadcrumbs_list, draw_link, breadcrumbs_node);
+
+        script = webkit_dom_document_create_element (document, "script", NULL);
+        webkit_dom_node_set_text_content (
+                WEBKIT_DOM_NODE (script),
+                "$('#breadcrumbs').buttonset();",
+                NULL);
+        webkit_dom_node_append_child (breadcrumbs_node,
+                                      WEBKIT_DOM_NODE (script),
+                                      NULL);
 }
 
 
