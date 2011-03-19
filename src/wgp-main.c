@@ -314,6 +314,11 @@ browse_source_cb (GrlMediaSource *source,
                                                                 "p",
                                                                 NULL);
                 webkit_dom_element_set_attribute (paragraph, "id", title, NULL);
+                webkit_dom_element_set_attribute (paragraph,
+                                                  "class",
+                                                  "ui-widget-content",
+                                                  NULL);
+
                 if (GRL_IS_MEDIA_BOX (media)) {
                         text = g_strdup_printf ("+ %s", title);
                 } else {
@@ -393,6 +398,11 @@ source_added_cb (GrlPluginRegistry *registry,
                                                         "p",
                                                         NULL);
         webkit_dom_element_set_attribute (paragraph, "id", source_name, NULL);
+        webkit_dom_element_set_attribute (paragraph,
+                                          "class",
+                                          "ui-widget-content",
+                                          NULL);
+
         webkit_dom_node_set_text_content (WEBKIT_DOM_NODE (paragraph),
                                           g_strdup_printf ("+ %s", source_name),
                                           NULL);

@@ -13,22 +13,19 @@
   </head>
 
   <body>
-    <div id="all">
-      <div id="menu">
-        <div id="icons">
-          <div id="about">
-            <div id="about_dialog" title="About"></div>
-            <script>
-              $("#about_dialog").dialog({ autoOpen: false });
-            </script>
-          </div>
+    <div id="menu">
+      <div id="icons" style="float: right;">
+        <div id="about">
+          <div id="about_dialog" title="About"></div>
+          <script>
+            $("#about_dialog").dialog({ autoOpen: false });
+          </script>
         </div>
-        <h1>Web Grilo Player</h1>
       </div>
-      <div id="main"></div>
       <div id="breadcrumbs"></div>
-      <div id="sources"></div>
     </div>
+    <div id="sources" class="ui-widget-content ui-corner-all"></div>
+    <div id="main" class="ui-widget-content ui-corner-all"></div>
   </body>
 
 </html>

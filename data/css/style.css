@@ -1,9 +1,35 @@
-#all {
-    background-color: #DDDDFF;
-    border-radius: 1em;
-    padding: 1em;
+#menu {
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
 }
 
 #icons {
     float: right;
+}
+
+#sources {
+    padding: 0.5em;
+    overflow: auto;
+    height: 87%;
+    float:left;
+    width: 60%;
+    margin-right: 0.5em;
+}
+
+#main {
+    padding: 0.5em;
+    overflow: auto;
+    height: 87%;
+}
+
+#sources p {
+    margin: 3px;
+    padding: 0.4em;
+}
+#sources p:hover {
+    background: #FECA40;
+}
+#sources p:active {
+    background: #F39814;
+    color: white;
 }
